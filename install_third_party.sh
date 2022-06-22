@@ -22,6 +22,44 @@ esac
 
 echo "Platform detected : $OS_NAME"
 
+install_cmake_linux () {
+    if [ -d "cmake-3.23.2-linux-x86_64" ]
+    then
+        echo "Skip download"
+    else
+        wget https://github.com/Kitware/CMake/releases/download/v3.23.2/cmake-3.23.2-linux-x86_64.tar.gz
+        tar -xvzf cmake-3.23.2-linux-x86_64.tar.gz
+    fi
+    cd cmake-3.23.2-linux-x86_64
+    ./bootstrap
+    make
+    make install
+}
+
+install_cmake_macos () {
+    echo "Not Implemented"
+}
+
+install_cmake () {
+    echo "=== CMake ==="
+    if ! comand -v cmake &> /dev/null
+    then
+        echo "-> cmake could not be found"
+        echo "-> Installing cmake"
+		if [ $OS_NAME == osx ];
+		then
+            install_cmake_macos
+        elif [ $OS_NAME == linux ];
+        then
+            sudo apt-get -y install cmake
+            #install_cmake_linux
+        fi
+
+    else
+        echo "-> cmake already installed"
+    fi
+}
+
 install_dcm2niix () {
 	echo "=== dcm2niix ==="
 	if ! command -v dcm2niix &> /dev/null
@@ -36,7 +74,11 @@ install_dcm2niix () {
 			git clone https://github.com/rordenlab/dcm2niix.git
 		fi
 		cd dcm2niix
-		mkdir build && cd build
+        if [ ! -d "build" ]
+        then
+		    mkdir build
+        fi
+        cd build
 		echo "-> Building from sources..."
 		cmake ..
 		echo "-> Installing..."
@@ -58,12 +100,13 @@ install_itk () {
 	else
 		git clone https://github.com/InsightSoftwareConsortium/ITK.git
 	fi
-	mkdir ITK-build && cd ITK-build
+    if [ ! -d "ITK-build" ]
+    then
+	    mkdir ITK-build
+    fi
+    cd ITK-build
 	echo "-> Building from sources..."
-	cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF
-	      -DBUILD_EXAMPLES:BOOL=OFF
-              -DModule_ITKReview:BOOL=ON
-              ../ITK
+	cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKReview:BOOL=ON ../ITK
 	make
 	echo "-> Installing..."
 	make install
@@ -83,7 +126,11 @@ install_petpvc () {
 		else
 			git clone https://github.com/UCL/PETPVC.git
 		fi
-		mkdir PETPVC-build && cd PETPVC-build
+        if [ ! -d "PETPVC-build" ]
+        then
+            mkdir PETPVC-build
+        fi
+        cd PETPVC-build
 		echo "-> Building from sources..."
 		cmake ../PETPVC
 		make
@@ -109,7 +156,11 @@ install_convert3d () {
 		else
 			git clone https://git.code.sf.net/p/c3d/git c3d
 		fi
-		mkdir c3d-build && cd c3d-build
+        if [ ! -d "c3d-build" ]
+        then
+            mkdir c3d-build
+        fi
+        cd c3d-build
 		echo "-> Building from sources..."
 		cmake ../c3d
 		make
@@ -127,10 +178,10 @@ install_mrtrix3 () {
 	then
 		echo "-> mrconvert could not be found"
 		echo "-> Installing MRtrix3"
-		if $OS_NAME == osx
+		if [ $OS_NAME == osx ]
 		then
 			install_mrtrix3_macos
-		elif $OS_NAME == linux
+		elif [ $OS_NAME == linux ]
 		then
 			install_mrtrix3_linux
 		fi
@@ -160,7 +211,10 @@ install_ants () {
 		else
 			git clone https://github.com/ANTsX/ANTs.git
 		fi
-		mkdir ants-build
+        if [ ! -d "ants-build" ]
+        then
+		    mkdir ants-build
+        fi
 		workingDir=${PWD}/ants-build
 		cd ants-build
 		mkdir build install
@@ -209,11 +263,11 @@ install_freesurfer () {
 	if ! command -v freeview &> /dev/null
 	then
 		echo "-> freeview could not be found"
-		echo "-> Installing FreeSurfer"	
-		if $OS_NAME == osx
+		echo "-> Installing FreeSurfer"
+		if [ $OS_NAME == osx ]
 		then
 			install_freesurfer_macos
-		elif $OS_NAME == linux
+		elif [ $OS_NAME == linux ]
 		then
 			install_freesurfer_ubuntu
 		fi
@@ -249,6 +303,7 @@ install_spm () {
 	install_spm12_linux
 }
 
+install_cmake
 install_dcm2niix
 install_itk
 install_petpvc
