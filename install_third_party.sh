@@ -5,6 +5,36 @@ set -eu -o pipefail # fail on error and report it, debug all lines
 sudo -n true
 test $? -eq 0 || exit 1 "you should have sudo privilege to run this script"
 
+if [ -f /etc/os-release ]; then
+	# freedesktop.org and systemd
+	. /etc/os-release
+	OS=$NAME
+ 	VER=$VERSION_ID
+elif type lsb_release >/dev/null 2>&1; then
+	# linuxbase.org
+	OS=$(lsb_release -si)
+ 	VER=$(lsb_release -sr)
+elif [ -f /etc/lsb-release ]; then
+	# For some versions of Debian/Ubuntu without lsb_release command
+	. /etc/lsb-release
+	OS=$DISTRIB_ID
+	VER=$DISTRIB_RELEASE
+elif [ -f /etc/debian_version ]; then
+	# Older Debian/Ubuntu/etc.
+ 	OS=Debian
+ 	VER=$(cat /etc/debian_version)
+elif [ -f /etc/SuSe-release ]; then
+	# Older SuSE/etc.
+ 	...
+elif [ -f /etc/redhat-release ]; then
+	# Older Red Hat, CentOS, etc.
+ 	...
+else
+	# Fall back to uname, e.g. "Linux <version>", also works for BSD, etc.
+	OS=$(uname -s)
+	VER=$(uname -r)
+fi
+
 case $(uname | tr '[:upper:]' '[:lower:]') in
   linux*)
     export OS_NAME=linux
@@ -20,7 +50,7 @@ case $(uname | tr '[:upper:]' '[:lower:]') in
     ;;
 esac
 
-echo "Platform detected : $OS_NAME"
+echo "Platform detected : $OS_NAME, $OS, $VER"
 
 install_cmake_linux () {
     if [ -d "cmake-3.23.2-linux-x86_64" ]
@@ -42,7 +72,7 @@ install_cmake_macos () {
 
 install_cmake () {
     echo "=== CMake ==="
-    if ! comand -v cmake &> /dev/null
+    if ! command -v cmake &> /dev/null
     then
         echo "-> cmake could not be found"
         echo "-> Installing cmake"
@@ -120,7 +150,7 @@ install_petpvc () {
 		echo "-> petpvc could not be found"
 		echo "-> Installing petpvc"
 		echo "-> Download sources..."
-		if [ -d "dcm2niix" ]
+		if [ -d "PETPVC" ]
 		then
 			echo "-> Skip download as PETPVC folder already exists"
 		else
@@ -195,8 +225,19 @@ install_mrtrix3_macos () {
 	sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/MRtrix3/macos-installer/master/install)"
 }
 
+install_conda_linux () {
+	wget https://repo.anaconda.com/miniconda/Miniconda3-py39_4.12.0-Linux-x86_64.sh -O $HOME/miniconda.sh
+	bash $HOME/miniconda.sh -b -u -p $HOME/miniconda
+	export PATH=$HOME/miniconda/bin:$PATH
+	conda init bash
+}
+
 install_mrtrix3_linux () {
-	conda install -c mrtrix3 mrtrix3
+	if ! command -v conda &> /dev/null
+	then
+		install_conda_linux
+	fi
+	conda install -y -c mrtrix3 mrtrix3
 }
 
 install_ants () {
@@ -204,6 +245,7 @@ install_ants () {
 	if ! command -v antsRegistration &> /dev/null
 	then
 		echo "-> antsRegistration could not be found"
+		apt-get install zlib1g-dev
 		echo "-> Installing ANTS"
 		if [ -d "ANTs" ]
 		then
@@ -217,8 +259,12 @@ install_ants () {
         fi
 		workingDir=${PWD}/ants-build
 		cd ants-build
-		mkdir build install
-		cd build
+		#mkdir build install
+		if [ ! -d "install" ]
+		then
+			mkdir install
+		fi
+		#cd build
 		cmake \
     			-DCMAKE_INSTALL_PREFIX=${workingDir}/install \
     			../ANTs 2>&1 | tee cmake.log
@@ -227,7 +273,7 @@ install_ants () {
 		make install 2>&1 | tee install.log
 		export ANTSPATH=/opt/ANTs/bin/
 		export PATH=${ANTSPATH}:$PATH
-		cd ..
+		#cd ..
 		cd ..
 		cd ..
 	else
@@ -283,10 +329,15 @@ install_freesurfer () {
 install_matlab_runtime_linux () {
 	mkdir matlab_runtime && cd matlab_runtime
 	#wget https://ssd.mathworks.com/supportfiles/downloads/R2022a/Release/2/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2022a_Update_2_glnxa64.zip
-	wget https://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/MCR/glnxa64/MCRInstaller.bin
+	#wget https://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/MCR/glnxa64/MCRInstaller.bin
+	wget https://ssd.mathworks.com/supportfiles/downloads/R2021a/Release/6/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2021a_Update_6_glnxa64.zip
+	apt install unzip
+	unzip MATLAB_Runtime_R2021a_Update_6_glnxa64.zip
+	cd matlab
+	./install -mode silent -agreeToLicense yes
 	#unzip MATLAB_Runtime_R2022a_Update_2_glnxa64.zip
-	chmod 755 MCRInstaller.bin
-	./MCRInstaller.bin -P bean421.installLocation="MCR" -silent
+	#chmod 755 MCRInstaller.bin
+	#./MCRInstaller.bin -P bean421.installLocation="MCR" -silent
 	cd ..
 }
 
@@ -303,13 +354,13 @@ install_spm () {
 	install_spm12_linux
 }
 
-install_cmake
-install_dcm2niix
-install_itk
-install_petpvc
-install_convert3d
-install_mrtrix3
-install_ants
-install_fsl
-install_freesurfer
-install_spm
+#install_cmake
+#install_dcm2niix
+#install_itk
+#install_petpvc
+#install_convert3d
+#install_mrtrix3
+#install_ants
+#install_fsl
+#install_freesurfer
+#install_spm
